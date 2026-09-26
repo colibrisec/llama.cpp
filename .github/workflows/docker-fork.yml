@@ -1,0 +1,95 @@
+name: Publish fork container images
+
+on:
+  workflow_dispatch:
+    inputs:
+      backend:
+        description: Backend to publish
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - cpu
+          - cuda
+          - rocm
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    name: ${{ matrix.backend }} / ${{ matrix.target }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - backend: cpu
+            dockerfile: .devops/cpu.Dockerfile
+            target: full
+          - backend: cpu
+            dockerfile: .devops/cpu.Dockerfile
+            target: light
+          - backend: cpu
+            dockerfile: .devops/cpu.Dockerfile
+            target: server
+          - backend: cuda
+            dockerfile: .devops/cuda.Dockerfile
+            target: full
+          - backend: cuda
+            dockerfile: .devops/cuda.Dockerfile
+            target: light
+          - backend: cuda
+            dockerfile: .devops/cuda.Dockerfile
+            target: server
+          - backend: rocm
+            dockerfile: .devops/rocm.Dockerfile
+            target: full
+          - backend: rocm
+            dockerfile: .devops/rocm.Dockerfile
+            target: light
+          - backend: rocm
+            dockerfile: .devops/rocm.Dockerfile
+            target: server
+
+    if: ${{ inputs.backend == 'all' || inputs.backend == matrix.backend }}
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and publish image
+        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          target: ${{ matrix.target }}
+          platforms: linux/amd64
+          push: true
+          provenance: false
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:${{ matrix.target }}-${{ matrix.backend }}
+            ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:${{ matrix.target }}-${{ matrix.backend }}-${{ github.sha }}
+          build-args: |
+            APP_VERSION=${{ github.sha }}
+            APP_REVISION=${{ github.sha }}
+            IMAGE_URL=${{ github.server_url }}/${{ github.repository }}
+            IMAGE_SOURCE=${{ github.server_url }}/${{ github.repository }}
+          cache-from: type=gha,scope=${{ matrix.backend }}-${{ matrix.target }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.backend }}-${{ matrix.target }}
