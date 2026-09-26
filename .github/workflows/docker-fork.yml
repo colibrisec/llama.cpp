@@ -86,8 +86,8 @@ jobs:
           push: true
           provenance: false
           tags: |
-            ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:${{ matrix.target }}-${{ matrix.backend }}
-            ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:${{ matrix.target }}-${{ matrix.backend }}-${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:parallel-decision-${{ matrix.target }}-${{ matrix.backend }}
+            ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:parallel-decision-${{ matrix.target }}-${{ matrix.backend }}-${{ github.sha }}
           build-args: |
             APP_VERSION=${{ github.sha }}
             APP_REVISION=${{ github.sha }}
